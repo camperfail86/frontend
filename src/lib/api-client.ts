@@ -1,38 +1,46 @@
 import Axios, { type InternalAxiosRequestConfig } from "axios";
-
 import { useNotifications } from "@/components/ui/notifications";
-import { env } from "@/config/env";
-// import { paths } from '@/config/paths';
 
 function authRequestInterceptor(config: InternalAxiosRequestConfig) {
-    if (config.headers) {
-        config.headers.Accept = "application/json";
+    config.headers = config.headers ?? {};
+    config.headers.Accept = "application/json";
 
-        const token = localStorage.getItem("token");
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+    const token = localStorage.getItem("token");
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
     }
 
-    config.withCredentials = true;
     return config;
 }
 
 export const api = Axios.create({
-    baseURL: env.API_URL,
+    baseURL: "/api/v1",
 });
 
 api.interceptors.request.use(authRequestInterceptor);
-api.interceptors.response.use(
-    (response) => {
-        return response.data;
-    },
-    (error) => {
-        let message = error.response?.data?.message || error.message;
 
-        if (error.response?.status === 401) {
-            message = "401 Incorrect username or password";
+api.interceptors.response.use(
+    (response) => response.data,
+    (error) => {
+        const status = error.response?.status;
+
+        if (status === 401) {
+            localStorage.removeItem("token");
+
+            useNotifications.getState().addNotification({
+                type: "error",
+                title: "Сессия истекла",
+                message: "Войдите заново",
+            });
+
+            if (window.location.pathname !== "/login") {
+                window.location.href = "/login";
+            }
+
+            return Promise.reject(error);
         }
+
+        const message = error.response?.data?.detail || error.response?.data?.message || error.message;
 
         useNotifications.getState().addNotification({
             type: "error",
@@ -40,13 +48,6 @@ api.interceptors.response.use(
             message,
         });
 
-        // if (error.response?.status === 401) {
-        //   const searchParams = new URLSearchParams();
-        //   const redirectTo =
-        //     searchParams.get('redirectTo') || window.location.pathname;
-        //   window.location.href = paths.auth.login.getHref(redirectTo);
-        // }
-
         return Promise.reject(error);
-    },
+    }
 );
