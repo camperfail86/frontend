@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api-client";
 import { paths } from "@/config/paths";
@@ -16,9 +16,11 @@ type Scores = Record<string, number>;
 
 export default function EvaluateRoute() {
     const navigate = useNavigate();
+    const { projectId } = useParams();
 
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [projectId, setProjectId] = useState<number | null>(null);
+    const pid = projectId ? Number(projectId) : null;
+
+    const [project, setProject] = useState<Project | null>(null);
     const [participantId, setParticipantId] = useState<number | null>(null);
 
     const [scores, setScores] = useState<Scores>({});
@@ -29,60 +31,51 @@ export default function EvaluateRoute() {
 
     useEffect(() => {
         const init: Scores = {};
-        for (const c of CRITERIA) {
-            init[c.id] = 0;
-        }
+        for (const c of CRITERIA) init[c.id] = 0;
         setScores(init);
     }, []);
 
-    const load = async () => {
-        setLoading(true);
-        setError("");
-        try {
-            const res = await api.get("/projects/");
-            const items = res.items;
-            setProjects(items);
-
-            if (items.length > 0) {
-                setProjectId(items[0].id);
-                setParticipantId(items[0].author_id);
-            } else {
-                setProjectId(null);
-                setParticipantId(null);
+    useEffect(() => {
+        async function load() {
+            if (!pid || Number.isNaN(pid)) {
+                setError("Неверный id проекта");
+                return;
             }
-        } catch (e: any) {
-            setError(e?.response?.data?.detail || e?.message || "Не удалось загрузить проекты");
-        } finally {
-            setLoading(false);
-        }
-    };
 
-    useEffect(() => {
+            setLoading(true);
+            setError("");
+
+            try {
+                const p = (await api.get(`/projects/${pid}`)) as Project;
+                setProject(p);
+                setParticipantId(p.author_id);
+            } catch (e: any) {
+                setError(e?.response?.data?.detail || e?.message || "Не удалось загрузить проект");
+            } finally {
+                setLoading(false);
+            }
+        }
+
         load();
-    }, []);
+    }, [pid]);
 
-    useEffect(() => {
-        const p = projects.find((x) => x.id === projectId);
-        if (p) {
-            setParticipantId(p.author_id);
-        }
-    }, [projectId, projects]);
-
-    const canSubmit = !!projectId && !!participantId && !loading;
+    const canSubmit = !!pid && !!participantId && !loading;
 
     async function submit() {
         if (!canSubmit) return;
+
         setLoading(true);
         setError("");
+
         try {
             await api.post("/evaluations/", {
-                project_id: projectId,
+                project_id: pid,
                 participant_id: participantId,
                 scores,
                 comment: comment.trim() || undefined,
             });
 
-            navigate(paths.app.result.getHref(String(projectId)));
+            navigate(paths.app.result.getHref(String(pid)));
         } catch (e: any) {
             setError(e?.response?.data?.detail || e?.message || "Не удалось отправить оценку");
         } finally {
@@ -98,24 +91,10 @@ export default function EvaluateRoute() {
                 <div style={{ padding: 10, border: "1px solid #ef4444", borderRadius: 8 }}>{error}</div>
             ) : null}
 
-            <label style={{ display: "grid", gap: 6 }}>
-                Проект
-                <select
-                    value={projectId || ""}
-                    onChange={(e) => setProjectId(Number(e.target.value))}
-                    disabled={loading || projects.length === 0}
-                >
-                    {projects.length === 0 ? (
-                        <option value="">{loading ? "Загрузка..." : "Проектов нет"}</option>
-                    ) : (
-                        projects.map((p) => (
-                            <option key={p.id} value={p.id}>
-                                #{p.id} — {p.name}
-                            </option>
-                        ))
-                    )}
-                </select>
-            </label>
+            <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ fontWeight: 700 }}>Проект</div>
+                <div>{project ? `#${project.id} — ${project.name}` : loading ? "Загрузка..." : "—"}</div>
+            </div>
 
             <label style={{ display: "grid", gap: 6 }}>
                 Участник (author_id проекта)
@@ -136,10 +115,8 @@ export default function EvaluateRoute() {
                             type="number"
                             min={0}
                             max={c.max}
-                            value={scores[c.id]}
-                            onChange={(e) =>
-                                setScores((prev) => ({ ...prev, [c.id]: Number(e.target.value) }))
-                            }
+                            value={scores[c.id] ?? 0}
+                            onChange={(e) => setScores((prev) => ({ ...prev, [c.id]: Number(e.target.value) }))}
                         />
                     </div>
                 ))}
@@ -155,8 +132,8 @@ export default function EvaluateRoute() {
                     {loading ? "..." : "Отправить оценку"}
                 </Button>
 
-                {projectId ? (
-                    <Button variant="primary" onClick={() => navigate(paths.app.result.getHref(String(projectId)))} disabled={loading}>
+                {pid ? (
+                    <Button variant="primary" onClick={() => navigate(paths.app.result.getHref(String(pid)))} disabled={loading}>
                         Результаты проекта
                     </Button>
                 ) : null}

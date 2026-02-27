@@ -32,16 +32,16 @@ export const paths = {
             getHref: () => "/app",
         },
         project: {
-            path: "/project",
-            getHref: () => "/project",
+            path: "/projects",
+            getHref: () => "/projects",
         },
         listDefences: {
             path: "/defences",
             getHref: () => "/defences",
         },
         evaluate: {
-            path: "/evaluate",
-            getHref: () => `/evaluate`,
+            path: "/evaluate/:projectId",
+            getHref: (projectId: string | number) => `/evaluate/${projectId}`,
         },
         result: {
             path: "/app/result/:projectId",

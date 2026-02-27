@@ -1,54 +1,64 @@
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { api } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
 
 type ProjectType = { id: number; name: string };
 
-type DefenseSlot = {
+type ScheduledDefense = {
     id: number;
-    defense_day_id: number;
-    slot_index: number;
     title: string;
     project_type: ProjectType;
     start_at: string;
     end_at: string;
     location: string;
-    capacity: number;
+    project_id: number | null;
 };
 
-type ListResponse<T> = { items: T[] };
+type Project = { id: number; name: string };
 
-function getDateKey(iso: string) {
-    return new Date(iso).toISOString().slice(0, 10);
+const fmtDate = (iso: string) => {
+    return new Date(iso).toLocaleDateString("ru-RU", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-function format(iso: string) {
-    return new Date(iso).toLocaleString("ru-RU", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+const fmtTime = (iso: string) => {
+    return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
 export default function ListDefences() {
-    const [slots, setSlots] = useState<DefenseSlot[]>([]);
-    const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [slots, setSlots] = useState<ScheduledDefense[]>([]);
+    const [types, setTypes] = useState<ProjectType[]>([]);
+    const [projectNames, setProjectNames] = useState<Record<number, string>>({});
 
     const [selectedDate, setSelectedDate] = useState("");
     const [selectedTypeId, setSelectedTypeId] = useState("");
 
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
     useEffect(() => {
         async function load() {
             setLoading(true);
-            try {
-                const slotsRes = (await api.get("/defense/slots")) as ListResponse<DefenseSlot>;
-                const typesRes = (await api.get("/defense/project-types")) as ListResponse<ProjectType>;
+            setError("");
 
-                setSlots(slotsRes.items || []);
-                setProjectTypes(typesRes.items || []);
+            try {
+                const scheduledRes = await api.get("/defense/scheduled");
+                const typesRes = await api.get("/defense/project-types");
+
+                const scheduled: ScheduledDefense[] = scheduledRes?.items ?? [];
+                setSlots(scheduled);
+
+                const projectTypes: ProjectType[] = typesRes?.items ?? [];
+                setTypes(projectTypes);
+
+                const projectsRes = await api.get("/projects/");
+                const projects: Project[] = projectsRes?.items ?? [];
+
+                const map: Record<number, string> = {};
+                for (const p of projects) map[p.id] = p.name;
+                setProjectNames(map);
+            } catch (e: any) {
+                setError(e?.response?.data?.detail || e?.message || "Ошибка загрузки");
             } finally {
                 setLoading(false);
             }
@@ -58,25 +68,25 @@ export default function ListDefences() {
     }, []);
 
     const dates: string[] = [];
-    for (const s of slots) {
-        const d = getDateKey(s.start_at);
-        if (!dates.includes(d)) {
-            dates.push(d);
-        }
+    for (const d of slots) {
+        const key = d.start_at.slice(0, 10);
+        if (!dates.includes(key)) dates.push(key);
     }
     dates.sort();
 
     let filtered = slots;
+
     if (selectedDate) {
-        filtered = filtered.filter((s) => getDateKey(s.start_at) === selectedDate);
+        filtered = filtered.filter((d) => d.start_at.slice(0, 10) === selectedDate);
     }
+
     if (selectedTypeId) {
-        filtered = filtered.filter((s) => String(s.project_type?.id) === selectedTypeId);
+        filtered = filtered.filter((d) => String(d.project_type?.id) === selectedTypeId);
     }
 
     return (
-        <div style={{ display: "grid", gap: 12, maxWidth: 900 }}>
-            <h2 style={{ margin: 0 }}>Список защит</h2>
+        <div style={{ maxWidth: 900, display: "grid", gap: 12 }}>
+            <h2>Список защит</h2>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <select value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} disabled={loading}>
@@ -90,7 +100,7 @@ export default function ListDefences() {
 
                 <select value={selectedTypeId} onChange={(e) => setSelectedTypeId(e.target.value)} disabled={loading}>
                     <option value="">Тип проекта (все)</option>
-                    {projectTypes.map((t) => (
+                    {types.map((t) => (
                         <option key={t.id} value={String(t.id)}>
                             {t.name}
                         </option>
@@ -98,32 +108,34 @@ export default function ListDefences() {
                 </select>
 
                 <Button
-                    variant="primary"
                     onClick={() => {
                         setSelectedDate("");
                         setSelectedTypeId("");
                     }}
                     disabled={loading}
                 >
-                    Сбросить фильтры
+                    Сбросить
                 </Button>
             </div>
 
-            {loading ? <div>Загрузка…</div> : null}
+            {loading && <div>Загрузка...</div>}
+            {!loading && error && <div style={{ color: "#b91c1c" }}>Ошибка: {error}</div>}
+            {!loading && !error && filtered.length === 0 && <div>Ничего не найдено</div>}
 
-            {!loading && filtered.length === 0 ? <div>Ничего не найдено</div> : null}
-
-            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 10 }}>
-                {filtered.map((s) => (
-                    <li key={s.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
+            <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 10 }}>
+                {filtered.map((d) => (
+                    <li key={d.id} style={{ border: "1px solid #e5e7eb", padding: 12, borderRadius: 8 }}>
                         <div style={{ display: "grid", gap: 6 }}>
-                            <div style={{ fontWeight: 700 }}>{s.title || `Слот #${s.id}`}</div>
-                            <div style={{ opacity: 0.8 }}>Тип: {s.project_type?.name}</div>
-                            <div style={{ opacity: 0.8 }}>
-                                Время: {format(s.start_at)} — {format(s.end_at)}
-                            </div>
-                            <div style={{ opacity: 0.8 }}>Локация: {s.location}</div>
-                            <div style={{ opacity: 0.8 }}>Вместимость: {s.capacity}</div>
+                            <b>{d.title || `Слот #${d.id}`}</b>
+
+                            <div>Тип: {d.project_type?.name ?? "—"}</div>
+                            <div>Дата: {fmtDate(d.start_at)}</div>
+                            <div>Время: {fmtTime(d.start_at)} — {fmtTime(d.end_at)}</div>
+                            <div>Локация: {d.location || "—"}</div>
+                            <div>Проект: {projectNames[d.project_id] || `#${d.project_id}`}</div>
+                            <Button asChild className="w-fit">
+                                <Link to={`/evaluate/${d.project_id}`}>Оценить</Link>
+                            </Button>
                         </div>
                     </li>
                 ))}

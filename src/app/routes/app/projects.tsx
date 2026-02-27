@@ -29,24 +29,6 @@ type ProjectItem = {
     name?: string;
 };
 
-// function formatSlot(s: DefenseSlot) {
-//     const start = new Date(s.start_at);
-//     const end = new Date(s.end_at);
-//
-//     const ok = !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime());
-//
-//     const time = ok
-//         ? `${start.toLocaleDateString()} ${start.toLocaleTimeString([], {
-//             hour: "2-digit",
-//             minute: "2-digit",
-//         })} - ${end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-//         : `${s.start_at} - ${s.end_at}`;
-//
-//     const type = s.project_type?.name ? ` · ${s.project_type.name}` : "";
-//     const title = s.title ? ` · ${s.title}` : "";
-//
-//     return `#${s.slot_index} · ${time}${type}${title}`;
-// }
 function formatSlot(s: DefenseSlot) {
     const start = new Date(s.start_at);
     const end = new Date(s.end_at);
@@ -61,7 +43,7 @@ function formatSlot(s: DefenseSlot) {
     return `#${s.slot_index} · ${time}${title}`;
 }
 
-export default function Project() {
+export default function Projects() {
     const [days, setDays] = useState<DefenseDay[]>([]);
     const [slots, setSlots] = useState<DefenseSlot[]>([]);
     const [projects, setProjects] = useState<ProjectItem[]>([]);
