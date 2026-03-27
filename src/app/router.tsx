@@ -41,8 +41,24 @@ export const createAppRouter = (queryClient: QueryClient) =>
             lazy: () => import("./routes/auth/login").then(convert(queryClient)),
         },
         {
+            path: paths.app.evaluate.path,
+            lazy: () => import("./routes/app/evaluate").then(convert(queryClient)),
+        },
+        {
             path: paths.auth.reset.path,
             lazy: () => import("./routes/auth/reset").then(convert(queryClient)),
+        },
+        {
+            path: paths.app.project.path,
+            lazy: () => import("./routes/app/projects").then(convert(queryClient)),
+        },
+        {
+            path: paths.app.listDefences.path,
+            lazy: () => import("./routes/app/listDefences").then(convert(queryClient)),
+        },
+        {
+            path: paths.app.result.path,
+            lazy: () => import("./routes/app/result").then(convert(queryClient)),
         },
         {
             path: paths.app.root.path,

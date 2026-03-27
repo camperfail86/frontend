@@ -24,6 +24,14 @@ export default defineConfig({
         },
     },
     server: {
+        proxy: {
+            "/api": {
+                target: "http://127.0.0.1:8000",
+                changeOrigin: true,
+                secure: false,
+                rewrite: (p) => p.replace(/^\/api/, ""),
+            },
+        },
         port: 3000,
         allowedHosts: [
             "test.1855789-cn23133.twc1.net",

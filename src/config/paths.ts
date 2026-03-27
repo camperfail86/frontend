@@ -31,5 +31,22 @@ export const paths = {
             path: "",
             getHref: () => "/app",
         },
+        project: {
+            path: "/projects",
+            getHref: () => "/projects",
+        },
+        listDefences: {
+            path: "/defences",
+            getHref: () => "/defences",
+        },
+        evaluate: {
+            path: "/evaluate/:projectId",
+            getHref: (projectId: string | number) => `/evaluate/${projectId}`,
+        },
+        result: {
+            path: "/app/result/:projectId",
+            getHref: (projectId: string | number) => `/app/result/${projectId}`,
+        },
+
     },
 } as const;

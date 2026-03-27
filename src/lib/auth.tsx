@@ -105,6 +105,10 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const user = useUser();
     const location = useLocation();
 
+    if (import.meta.env.DEV) { // Для разработки
+        return children
+    }
+
     if (!user.data) {
         return <Navigate to={paths.auth.login.getHref(location.pathname)} replace />;
     }
